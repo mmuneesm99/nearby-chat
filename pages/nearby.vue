@@ -1,57 +1,40 @@
 <template>
-  <div class="min-h-screen bg-gray-100 p-4">
-    <div class="max-w-2xl mx-auto">
-      <div class="flex justify-between items-center mb-6">
-        <h1 class="text-2xl font-bold">Nearby Users</h1>
-        <div class="flex items-center space-x-2">
-          <label for="distance" class="text-sm text-gray-600">Max Distance:</label>
-          <select
-            id="distance"
-            v-model="selectedDistance"
-            class="border rounded px-2 py-1"
-            @change="handleDistanceChange"
-            :disabled="usersLoading"
-          >
-            <option value="1">1 km</option>
-            <option value="5">5 km</option>
-            <option value="10">10 km</option>
-            <option value="20">20 km</option>
-          </select>
+  <div class="min-h-screen bg-gray-100">
+    <!-- Navigation -->
+    <nav class="bg-white shadow-sm">
+      <div class="max-w-2xl mx-auto px-4 py-3">
+        <div class="flex justify-between items-center">
+          <h1 class="text-xl font-bold">Nearby Chat</h1>
+          <div class="flex items-center space-x-4">
+            <NuxtLink to="/requests" class="text-blue-500 hover:text-blue-600">
+              Requests
+            </NuxtLink>
+            <NuxtLink to="/profile" class="text-blue-500 hover:text-blue-600">
+              Profile
+            </NuxtLink>
+          </div>
         </div>
       </div>
+    </nav>
+
+    <div class="max-w-2xl mx-auto p-4">
+      <!-- Distance Filter -->
+      <DistanceFilter
+        v-model:distance="selectedDistance"
+        @update:distance="handleDistanceChange"
+      />
 
       <!-- Incoming Requests -->
       <div v-if="incomingRequests.length > 0" class="mb-6">
         <h2 class="text-lg font-semibold mb-3">Incoming Requests</h2>
-        <div class="space-y-3">
-          <div
-            v-for="request in incomingRequests"
-            :key="request.id"
-            class="bg-white p-4 rounded-lg shadow"
-          >
-            <div class="flex items-center justify-between">
-              <span class="text-sm text-gray-600">Chat request from Anonymous User</span>
-              <div class="space-x-2">
-                <button
-                  @click="handleAcceptRequest(request.id)"
-                  class="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600 disabled:opacity-50 flex items-center"
-                  :disabled="loading"
-                >
-                  <LoadingSpinner v-if="loading" class="h-4 w-4" />
-                  <span v-else>Accept</span>
-                </button>
-                <button
-                  @click="handleRejectRequest(request.id)"
-                  class="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 disabled:opacity-50 flex items-center"
-                  :disabled="loading"
-                >
-                  <LoadingSpinner v-if="loading" class="h-4 w-4" />
-                  <span v-else>Reject</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <RequestCard
+          v-for="request in incomingRequests"
+          :key="request.id"
+          :request="request"
+          :loading="loading"
+          @accept="handleAcceptRequest(request.id)"
+          @reject="handleRejectRequest(request.id)"
+        />
       </div>
 
       <!-- Outgoing Requests -->
@@ -71,47 +54,34 @@
         </div>
       </div>
 
+      <!-- Error Messages -->
       <div v-if="locationError" class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
         {{ locationError }}
       </div>
+      <div v-if="usersError" class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+        {{ usersError }}
+      </div>
 
+      <!-- Loading State -->
       <div v-if="usersLoading" class="py-8">
         <LoadingSpinner text="Finding nearby users..." />
       </div>
 
+      <!-- No Users Found -->
       <div v-else-if="users.length === 0" class="text-center py-8 text-gray-500">
         <p>No users found nearby</p>
         <p class="text-sm mt-2">Try increasing the distance or check back later</p>
       </div>
 
+      <!-- Users List -->
       <div v-else class="space-y-4">
-        <div
+        <UserCard
           v-for="user in users"
           :key="user.id"
-          class="bg-white p-4 rounded-lg shadow hover:shadow-md transition-shadow"
-        >
-          <div class="flex items-center justify-between">
-            <div>
-              <span class="font-medium">Anonymous User</span>
-              <span class="text-sm text-gray-500 ml-2">Last seen: {{ formatLastSeen(user.lastSeen) }}</span>
-            </div>
-            <div class="flex items-center space-x-4">
-              <span class="text-sm text-gray-600">
-                {{ formatDistance(user.distance) }} away
-              </span>
-              <button
-                v-if="!hasOutgoingRequest(user.id)"
-                @click="handleSendRequest(user.id)"
-                class="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 flex items-center"
-                :disabled="loading"
-              >
-                <LoadingSpinner v-if="loading" class="h-4 w-4" />
-                <span v-else>Chat</span>
-              </button>
-              <span v-else class="text-sm text-gray-500">Request sent</span>
-            </div>
-          </div>
-        </div>
+          :user="user"
+          :loading="loading"
+          @send-request="handleSendRequest(user.id)"
+        />
       </div>
     </div>
   </div>
@@ -177,22 +147,5 @@ const handleRejectRequest = async (requestId) => {
   } finally {
     loading.value = false
   }
-}
-
-const hasOutgoingRequest = (userId) => {
-  return outgoingRequests.value.some(request => request.toUid === userId)
-}
-
-const formatLastSeen = (timestamp) => {
-  if (!timestamp) return 'Unknown'
-  const date = new Date(timestamp)
-  return date.toLocaleTimeString()
-}
-
-const formatDistance = (distance) => {
-  if (distance < 1) {
-    return `${Math.round(distance * 1000)}m`
-  }
-  return `${distance.toFixed(1)}km`
 }
 </script> 
